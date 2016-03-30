@@ -3,7 +3,7 @@ import csv
 import logging
 
 class Parameters:
-    BASE_OUTPUT_FILE_NAME ='output/output_{}.csv'
+    BASE_OUTPUT_FILE_NAME ='output2/output_{}.csv'
     API_KEY = '85g6qverxyyjqe37gxkgqp6n'
 
     BASE_API_PARAMETERS = {
@@ -76,7 +76,7 @@ def single_run(api_instance, api_params, file_name):
     get_data(api_instance, api_params, file_name, True)
 
 def looped_run(api_instance, api_params, file_name, delay_spacer):
-    for outcode in Parameters.OUTCODES[0:1]:
+    for outcode in Parameters.OUTCODES[28:29]:
         api_params['postcode'] = outcode
         chunk_file_name = file_name.format(outcode)
         get_data(api_instance, api_params, chunk_file_name, False)
