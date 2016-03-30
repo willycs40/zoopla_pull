@@ -37,7 +37,7 @@ def single_run(api_instance, api_params, file_name):
     get_data(api_instance, api_params, file_name, True)
 
 def looped_run(api_instance, api_params, file_name, delay_spacer):
-    for outcode in Parameters.OUTCODES[0:0]:
+    for outcode in Parameters.OUTCODES:
         api_params['postcode'] = outcode
         chunk_file_name = file_name.format(outcode)
         get_data(api_instance, api_params, chunk_file_name, False)
