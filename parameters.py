@@ -1,5 +1,5 @@
 class Parameters:
-    BASE_OUTPUT_FILE_NAME ='output2/output_{}.csv'
+    BASE_OUTPUT_FILE_NAME ='output/output_{}.csv'
 
     BASE_API_PARAMETERS = {
         'postcode': 'b23',
