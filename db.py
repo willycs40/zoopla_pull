@@ -1,14 +1,28 @@
 import MySQLdb
-db = MySQLdb.connect(host="mysql", user="will", passwd="housepass", db="housing")
-cursor = db.cursor()
+from parameters import Parameters
+import logging
 
-#cursor.execute("SELECT name, phone_number FROM coworkers WHERE name=%s AND clue > %s LIMIT 5", (name, clue_threshold))
-cursor.execute("select * from test")
+def run_sql(sql):
+    db = MySQLdb.connect(host=Parameters.DB_HOST, user=Parameters.DB_USER, passwd=Parameters.DB_PASSWORD, db=Parameters.DB_SCHEMA)
+    cursor = db.cursor()
 
-data = cursor.fetchall()
-for row in data :
-    print(row)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except:
+        db.rollback()
 
-db.close()
+    data = cursor.fetchall()
+    db.close()
 
+    try:
+        return data[0][0]
+    except:
+        return True
 
+def initialise_db():
+    run_sql(Parameters.SQL_INITIALISE)
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    initialise_db()
