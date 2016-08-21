@@ -3,9 +3,8 @@ import csv
 import logging
 from parameters import Parameters
 from keys import Keys
-from db import db
+from db import run_sql
 import MySQLdb
-
 
 
 def stage_listings(batch_id, api_instance, api_parameters):
@@ -20,7 +19,7 @@ def stage_listings(batch_id, api_instance, api_parameters):
             if hasattr(listing, field):
                 row_fields.append(getattr(listing, field))
             else:
-                row_fields.append('')
+                row_fields.append('NULL')
 
         insert_statements.append(Parameters.SQL_STAGE_LISTING.format(batch_id, *row_fields))
 
@@ -34,7 +33,7 @@ def stage_listings(batch_id, api_instance, api_parameters):
 def perform_looped_db_run():
 
     logging.info('Getting API')
-    api_instance = api(version=1, api_key=Keys.API_KEY)
+    api_instance = api(api_key=Keys.API_KEY)
 
     api_parameters= Parameters.BASE_API_PARAMETERS
 
@@ -54,8 +53,6 @@ def perform_looped_db_run():
         run_sql(Parameters.SQL_MERGE_STAGE)
 
     run_sql(Parameters.SQL_LOG_ENTRY.format(batch_id=batch_id, level='I', message='Finished Batch'))
-
-
 
 def csv_runner():
     logging.info('Getting API')
