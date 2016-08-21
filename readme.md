@@ -3,7 +3,7 @@
 
 3. Make the mysql 
 docker pull mysql
-docker run --name db -e MYSQL_ROOT_PASSWORD=rootpass -e MYSQL_DATABASE=housing -e MYSQL_USER=will -e MYSQL_PASSWORD=housepass -d mysql
+docker run --name db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=rootpass -e MYSQL_DATABASE=housing -e MYSQL_USER=will -e MYSQL_PASSWORD=housepass -d mysql
 docker run -it --rm --name app --link db:mysql image_zp
 
 

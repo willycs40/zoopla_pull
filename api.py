@@ -8,6 +8,10 @@ from parameters import Parameters
 
 log = logging.getLogger(__name__)
 
+class PropertyListing(object):
+    def __init__(self, member_variables):
+        self.__dict__ = member_variables
+
 class api(object):
 
     def __init__(self, api_key):
@@ -54,7 +58,7 @@ class api(object):
             num_yielded_in_loop = 0
 
             for listing in response['listing']:
-                yield listing
+                yield PropertyListing(listing)
                 num_yielded += 1
                 num_yielded_in_loop += 1
                 if finished():

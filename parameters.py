@@ -2,11 +2,11 @@ class Parameters:
 
     DB_HOST = 'mysql'
     DB_USER = 'will'
-    DB_PASS = 'housepass'
+    DB_PASSWORD = 'housepass'
     DB_SCHEMA = 'housing'
 
     API_BASE_URL = 'http://api.zoopla.co.uk/api/v1/'
-    API_SLEEP_DELAY_PER_PAGE = 40
+    API_SLEEP_DELAY_PER_PAGE = 3
     API_PAGE_SIZE = 100
 
     BASE_OUTPUT_FILE_NAME ='output/output_{}.csv'
@@ -61,7 +61,7 @@ class Parameters:
     SQL_LOG_ENTRY = '''
         insert into housing.log (
             batch_id
-            timestamp
+            , timestamp
             , level
             , message
         )
@@ -73,9 +73,9 @@ class Parameters:
         )
     '''
 
-    SQL_STAGE_LISTING = '''
+    SQL_STAGE_LISTING_HEADER = '''
         insert into housing.listing_stage(
-            , batch_id
+            batch_id
             , listing_id
             , outcode 
             , displayable_address 
@@ -97,7 +97,11 @@ class Parameters:
             , first_published_date 
             , last_published_date 
         )
-        values (
+        values 
+        '''
+    
+    SQL_STAGE_LISTING_VALUES = '''    
+        (
             {}
             , {}
             , '{}'
@@ -122,7 +126,21 @@ class Parameters:
         )
     '''
 
-    SQL_MERGE_STAGE = '''
+    SQL_MERGE_STAGE = ['''
+        insert into housing.property_type(property_type)
+        select property_type
+        from listing_stage
+        where property_type <> ''
+        and property_type not in (select property_type from property_type)
+        group by property_type;
+    ''','''
+        insert into housing.price_modifier(price_modifier)
+        select price_modifier
+        from listing_stage
+        where price_modifier <> ''
+        and price_modifier not in (select price_modifier from price_modifier)
+        group by price_modifier;
+    ''','''
         insert into housing.listing(
             batch_id
             , listing_id
@@ -134,6 +152,7 @@ class Parameters:
             , listing_status_id
             , status_id 
             , price 
+            , price_modifier_id
             , property_type_id 
             , new_home 
             , latitude 
@@ -141,23 +160,23 @@ class Parameters:
             , first_published_date 
             , last_published_date
         )
-        select      batch_id
-                    , listing_id
-                    , outcode
-                    , num_bathrooms
-                    , num_bedrooms
-                    , num_floors
-                    , num_recepts
+        select      l.batch_id
+                    , l.listing_id
+                    , l.outcode
+                    , l.num_bathrooms
+                    , l.num_bedrooms
+                    , l.num_floors
+                    , l.num_recepts
                     , ls.listing_status_id
                     , s.status_id 
-                    , price 
+                    , l.price 
                     , pm.price_modifier_id
                     , pt.property_type_id 
-                    , case when new_home='true' then 1 else 0 end
-                    , latitude 
-                    , longitude 
-                    , first_published_date 
-                    , last_published_date
+                    , case when l.new_home='true' then 1 else 0 end
+                    , l.latitude 
+                    , l.longitude 
+                    , l.first_published_date 
+                    , l.last_published_date
         from        listing_stage l
         left join   listing_status ls
         on          l.listing_status = ls.listing_status
@@ -170,8 +189,8 @@ class Parameters:
         left join   listing ll 
         on          l.listing_id = ll.listing_id
         and         l.last_published_date = ll.last_published_date
-        where       ll.listing_id is null
-
+        where       ll.listing_id is null;
+    ''','''
         insert into housing.listing_address(
             listing_table_id
             , displayable_address 
@@ -180,29 +199,30 @@ class Parameters:
             , details_url
         )
         select l.listing_table_id
-            , ls.displayable_address 
-            , ls.street_name
-            , ls.image_url 
-            , ls.details_url
+            , replace(ls.displayable_address,'^','\\'')
+            , replace(ls.street_name,'^','\\'')
+            , replace(ls.image_url,'^','\\'')
+            , replace(ls.details_url,'^','\\'')
         from        listing l
         inner join  listing_stage ls
         on          l.listing_id = ls.listing_id
-        and         l.batch_id = ls.batch_id
+        and         l.batch_id = ls.batch_id;
+    ''']
 
-    '''
-
-    SQL_INITIALISE = '''
-        create table housing.log (
-            log_id int NOT NULL AUTO_INCREMENT,
+    SQL_INITIALISE = ['''
+        create table if not exists housing.log (
+            log_id int NOT NULL AUTO_INCREMENT
             , batch_id int
             , timestamp datetime
             , level varchar(1)
             , message varchar(500)
-        primary key (log_id)
+            , primary key (log_id)
         );
+        
+        ''','''
 
-        create table housing.listing_stage (
-            listing_stage_id int NOT NULL AUTO_INCREMENT,
+        create table if not exists housing.listing_stage (
+            listing_stage_id int NOT NULL AUTO_INCREMENT
             , batch_id int
             , listing_id int
             , outcode varchar(5)
@@ -215,21 +235,22 @@ class Parameters:
             , status varchar(20)
             , price int
             , price_modifier varchar(20)
-            , property_type varchar(20)
+            , property_type varchar(50)
             , street_name varchar(250)
-            , image_url varchar(100)
-            , details_url varchar(100)
+            , image_url varchar(250)
+            , details_url varchar(250)
             , new_home varchar(5)
             , latitude float
             , longitude float
-            , first_published_date date
-            , last_published_date date
-        primary key (listing_stage_id)
+            , first_published_date datetime
+            , last_published_date datetime
+            , primary key (listing_stage_id)
         );
 
+        ''','''
 
-        create table housing.listing (
-            listing_table_id int NOT NULL AUTO_INCREMENT,
+        create table if not exists housing.listing (
+            listing_table_id int NOT NULL AUTO_INCREMENT
             , batch_id int
             , listing_id int
             , outcode varchar(5)
@@ -245,115 +266,73 @@ class Parameters:
             , new_home tinyint
             , latitude float
             , longitude float
-            , first_published_date date
-            , last_published_date date
-        primary key (listing_table_id)
+            , first_published_date datetime
+            , last_published_date datetime
+            , primary key (listing_table_id)
         );
+        
+        ''','''
 
-        create table housing.listing_address (
-            listing_address_id int NOT NULL AUTO_INCREMENT,
-            listing_table_id int
-            displayable_address varchar(250)
-            street_name varchar(250)
-            image_url varchar(100)
-            details_url varchar(100)
-            )
+        create table if not exists housing.listing_address (
+            listing_address_id int NOT NULL AUTO_INCREMENT
+            , listing_table_id int
+            , displayable_address varchar(250)
+            , street_name varchar(250)
+            , image_url varchar(250)
+            , details_url varchar(250)
+            , primary key (listing_address_id)
+        );
+        
+        ''','''
 
-        create table housing.listing_status (
+        create table if not exists housing.listing_status (
             listing_status_id int
             , listing_status varchar(5)
-        primary key (listing_status_id)
+            , primary key (listing_status_id)
         );
+        
+        ''','''
 
         insert into housing.listing_status
-        values (1, 'sale');
-        insert into housing.listing_status
-        values (2, 'rent');
+        values (1, 'sale'),
+            (2, 'rent');
+        
+        ''','''
 
-        create table housing.status (
+        create table if not exists housing.status (
             status_id int
             , status varchar(20)
-        primary key (status_id)
+            , primary key (status_id)
         );
+        
+        ''','''
 
         insert into housing.status
-        values (1, 'for_sale');
-        insert into housing.status
-        values (2, 'sale_under_offer');
-        insert into housing.status
-        values (3, 'sold');
-        insert into housing.status
-        values (4, 'to_rent');
-        insert into housing.status
-        values (5, 'rent_under_offer');
-        insert into housing.status
-        values (6, 'rented');   
+        values (1, 'for_sale'),
+            (2, 'sale_under_offer'),
+            (3, 'sold'),
+            (4, 'to_rent'),
+            (5, 'rent_under_offer'),
+            (6, 'rented');   
 
-        create table housing.price_modifier (
-            price_modifier_id int
+        ''','''
+            
+        create table if not exists housing.price_modifier (
+            price_modifier_id int NOT NULL AUTO_INCREMENT
             , price_modifier varchar(20)
-        primary key (price_modifier_id)
+            , primary key (price_modifier_id)
         );
 
-        insert into housing.price_modifier
-        values (1, 'offers_over');
-        insert into housing.price_modifier
-        values (2, 'poa');
-        insert into housing.price_modifier
-        values (3, 'fixed_price');
-        insert into housing.price_modifier
-        values (4, 'from');
-        insert into housing.price_modifier
-        values (5, 'offers_in_region_of');
-        insert into housing.price_modifier
-        values (6, 'part_buy_part_rent');
-        insert into housing.price_modifier
-        values (7, 'price_on_request');
-        insert into housing.price_modifier
-        values (8, 'shared_equity');
-        insert into housing.price_modifier
-        values (9, 'shared_ownership');
-        insert into housing.price_modifier
-        values (10, 'guide_price');
-        insert into housing.price_modifier
-        values (11, 'sale_by_tender');
-
-        create table housing.property_type (
-            property_type_id int
-            , property_type varchar(20)
-        primary key (property_type_id)
+        ''','''
+        
+        create table if not exists housing.property_type (
+            property_type_id int NOT NULL AUTO_INCREMENT
+            , property_type varchar(50)
+            , primary key (property_type_id)
         );                   
 
-        insert into housing.property_type
-        values (1, 'Terraced');
-        insert into housing.property_type
-        values (2, 'End of terrace');
-        insert into housing.property_type
-        values (3, 'Semi-detached');
-        insert into housing.property_type
-        values (4, 'Detached');
-        insert into housing.property_type
-        values (5, 'Mews house');
-        insert into housing.property_type
-        values (6, 'Flat');
-        insert into housing.property_type
-        values (7, 'Maisonette');
-        insert into housing.property_type
-        values (8, 'Bungalow');
-        insert into housing.property_type
-        values (9, 'Town house');
-        insert into housing.property_type
-        values (10, 'Cottage');        
-        insert into housing.property_type
-        values (11, 'Farm/Barn');
-        insert into housing.property_type
-        values (12, 'Mobile/static');
-        insert into housing.property_type
-        values (13, 'Land');
-        insert into housing.property_type
-        values (14, 'Studio');
-        insert into housing.property_type
-        values (15, 'Block of flats');
-        insert into housing.property_type
-        values (16, 'Office');
-    '''
+        ''','''
+
+        insert into housing.log(batch_id, timestamp, level, message)
+        values (1, now(), 'I', 'Database created');
+    ''']
