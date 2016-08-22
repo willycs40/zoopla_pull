@@ -1,0 +1,10 @@
+FROM mysql
+MAINTAINER Will Cubitt-Smith
+
+ENV MYSQL_USER housing
+ENV MYSQL_PASSWORD housing
+ENV MYSQL_DATABASE housing
+ENV MYSQL_ROOT_PASSWORD housing
+
+VOLUME /var/lib/mysql
+EXPOSE 3306
